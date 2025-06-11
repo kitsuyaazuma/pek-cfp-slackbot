@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "pek-slackbot",
+	"name": "pek-cfp-slackbot",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-06-10",
 	"assets": {
