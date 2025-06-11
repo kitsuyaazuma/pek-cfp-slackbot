@@ -4,10 +4,11 @@
 		"dev": "wrangler dev",
 		"deploy": "wrangler deploy --minify",
 		"cf-typegen": "wrangler types --env-interface CloudflareBindings",
-        "format": "prettier --write src"
+		"format": "prettier --write src"
 	},
 	"dependencies": {
-		"hono": "^4.7.11"
+		"hono": "^4.7.11",
+		"zod": "^3.25.61"
 	},
 	"devDependencies": {
 		"prettier": "^3.5.3",

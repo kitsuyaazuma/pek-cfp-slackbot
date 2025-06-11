@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { Bindings, SlackOuterEvent } from "../types";
 import { postSlackMessage } from "../utils/slack";
+import { getProposal, getUuidFromMessage } from "../utils/fortee";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -18,11 +19,20 @@ app.post("/", async (c) => {
   const { event } = body;
   const { text, channel, ts } = event;
 
+  const uuid = getUuidFromMessage(text);
+  if (uuid === null) {
+    return c.text("No UUID found in message", 200);
+  }
+  const proposal = await getProposal(uuid);
+  if (proposal === null) {
+    return c.text("No proposal found for the given UUID", 200);
+  }
+
   await postSlackMessage(
     c.env.SLACK_BOT_TOKEN,
     channel,
     ts,
-    `You mentioned me with: ${text}`,
+    `Title: ${proposal.title}\nSpeaker: ${proposal.speaker.name}`,
   );
   return c.text("OK", 200);
 });
