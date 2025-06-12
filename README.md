@@ -1,23 +1,23 @@
 # pek-cfp-slackbot
 
-```txt
-npm install
-npm run dev
+A Slackbot for the Platform Engineering Kaigi CFP
+
+## Getting Started
+
+```bash
+pnpm install
+pnpm run dev
 ```
 
-```txt
-npm run deploy
+## Deployment
+
+```bash
+pnpm run deploy
+pnpm wrangler secret put SLACK_BOT_TOKEN
 ```
 
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
+## Type Generation
 
-```txt
-npm run cf-typegen
-```
-
-Pass the `CloudflareBindings` as generics when instantiation `Hono`:
-
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
+```bash
+pnpm run cf-typegen
 ```
