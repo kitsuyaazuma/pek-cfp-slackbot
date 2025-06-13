@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@kitsuyaazuma/hono-slack-verify':
+        specifier: ^0.1.0
+        version: 0.1.0
       hono:
         specifier: ^4.7.11
         version: 4.7.11
@@ -342,6 +345,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
+
+  '@kitsuyaazuma/hono-slack-verify@0.1.0':
+    resolution: {integrity: sha512-AzTbG1DbkQRdY240QiTXvF1trI0jFF5NVIm83vjjl2E8PDHDHVQVo4F/KlxCg08S3XO8tIDaTWMxLQ1hyjFHhw==}
 
   acorn-walk@8.3.2:
     resolution: {integrity: sha512-cjkyv4OtNCIeqhHrfS81QWXoCBPExR/J62oyEqepVw8WaQeSqpW2uhuLPh1m9eWhDuOo/jUXVTlifvesOWp/4A==}
@@ -715,6 +721,10 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
+
+  '@kitsuyaazuma/hono-slack-verify@0.1.0':
+    dependencies:
+      hono: 4.7.11
 
   acorn-walk@8.3.2: {}
 

@@ -3,8 +3,11 @@ import { Bindings, SlackOuterEvent } from "../types";
 import { postSlackMessage } from "../utils/slack";
 import { validateProposal, getUuidFromMessage } from "../utils/fortee";
 import { z } from "zod";
+import { verifySlackRequest } from "@kitsuyaazuma/hono-slack-verify";
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+app.use("*", verifySlackRequest());
 
 const formatValidationErrors = (error: z.ZodError) => {
   let message = "❌ プロポーザルの内容に以下の問題が見つかりました\n\n";

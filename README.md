@@ -14,6 +14,7 @@ pnpm run dev
 ```bash
 pnpm run deploy
 pnpm wrangler secret put SLACK_BOT_TOKEN
+pnpm wrangler secret put SLACK_SIGNING_SECRET
 ```
 
 ## Type Generation

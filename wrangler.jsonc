@@ -6,6 +6,9 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "pek-cfp-slackbot",
 	"main": "src/index.ts",
+    "compatibility_flags": [
+        "nodejs_compat"
+    ],
 	"compatibility_date": "2025-06-10",
 	"assets": {
 		"binding": "ASSETS",
