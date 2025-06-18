@@ -7,6 +7,10 @@ export const getUuidFromMessage = (message: string): string | null => {
   return match ? match[1] : null;
 };
 
+export const normalizeNewlines = (text: string): string => {
+  return text.replace(/\r\n|\r|\n/g, "\n");
+};
+
 const kanaValidation = z.string().superRefine((text, ctx) => {
   const sections = {
     name: {
@@ -75,13 +79,14 @@ const abstractValidation = z.string().superRefine((text, ctx) => {
   // TODO: Support English biography
   if (bioMatch && bioMatch[1]) {
     const bioText = bioMatch[1].trim();
-    if (bioText.length > 200) {
+    const normalizedBioText = normalizeNewlines(bioText);
+    if (normalizedBioText.length > 200) {
       ctx.addIssue({
         code: z.ZodIssueCode.too_big,
         maximum: 200,
         type: "string",
         inclusive: true,
-        message: `スピーカープロフィールの文字数がオーバーしています（現在：${bioText.length}文字、上限：200文字）`,
+        message: `スピーカープロフィールの文字数がオーバーしています（現在：${normalizedBioText.length}文字、上限：200文字）`,
       });
     }
   } else {
@@ -98,13 +103,14 @@ const abstractValidation = z.string().superRefine((text, ctx) => {
   // TODO: Support English abstract
   if (summaryMatch && summaryMatch[1]) {
     const summaryText = summaryMatch[1].trim();
-    if (summaryText.length > 400) {
+    const normalizedSummaryText = normalizeNewlines(summaryText);
+    if (normalizedSummaryText.length > 400) {
       ctx.addIssue({
         code: z.ZodIssueCode.too_big,
         maximum: 400,
         type: "string",
         inclusive: true,
-        message: `トーク概要の文字数がオーバーしています（現在：${summaryText.length}文字、上限：400文字）`,
+        message: `トーク概要の文字数がオーバーしています（現在：${normalizedSummaryText.length}文字、上限：400文字）`,
       });
     }
   } else {
