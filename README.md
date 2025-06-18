@@ -17,6 +17,7 @@ pnpm run deploy
 pnpm wrangler secret put SLACK_BOT_TOKEN
 pnpm wrangler secret put SLACK_SIGNING_SECRET
 pnpm wrangler secret put PROPOSAL_ONCALL_USERS
+pnpm wrangler secret put SLACK_STATUS_CHECK_CHANNEL
 ```
 
 ## Type Generation
