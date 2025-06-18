@@ -1,6 +1,8 @@
 export type Bindings = {
   SLACK_BOT_TOKEN: string;
   SLACK_SIGNING_SECRET: string;
+  PROPOSAL_ONCALL_KV: KVNamespace;
+  PROPOSAL_ONCALL_USERS: string;
 };
 
 export type SlackAppMentionEvent = {

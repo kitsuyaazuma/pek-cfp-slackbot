@@ -42,7 +42,24 @@ app.post("/", async (c) => {
     slackMessage = `✅ プロポーザルの内容は有効です\n\n*タイトル* : ${proposal.title}\n*スピーカー* : ${proposal.speaker.name}`;
   } else {
     if (result.error instanceof z.ZodError) {
-      slackMessage = formatValidationErrors(result.error);
+      const validationMessage = formatValidationErrors(result.error);
+      slackMessage = validationMessage;
+
+      const existingEntry = await c.env.PROPOSAL_ONCALL_KV.get(uuid);
+      if (existingEntry === null) {
+        const oncallUsers = c.env.PROPOSAL_ONCALL_USERS;
+        if (oncallUsers) {
+          const users = oncallUsers
+            .split(",")
+            .map((user) => user.trim())
+            .filter((user) => user !== "");
+          if (users.length > 0) {
+            const oncallUser = users[Math.floor(Math.random() * users.length)];
+            slackMessage += `\n<@${oncallUser}> さん、内容の確認をお願いします！🙏`;
+            await c.env.PROPOSAL_ONCALL_KV.put(uuid, oncallUser);
+          }
+        }
+      }
     } else {
       slackMessage = `🚨 エラーが発生しました\n\n${result.error.message}`;
     }
