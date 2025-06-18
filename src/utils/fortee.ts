@@ -7,6 +7,10 @@ export const getUuidFromMessage = (message: string): string | null => {
   return match ? match[1] : null;
 };
 
+export const normalizeNewlines = (text: string): string => {
+  return text.replace(/\r\n|\r|\n/g, "\n");
+};
+
 const kanaValidation = z.string().superRefine((text, ctx) => {
   const sections = {
     name: {
@@ -75,7 +79,7 @@ const abstractValidation = z.string().superRefine((text, ctx) => {
   // TODO: Support English biography
   if (bioMatch && bioMatch[1]) {
     const bioText = bioMatch[1].trim();
-    const normalizedBioText = bioText.replace(/\r\n|\r|\n/g, "\n");
+    const normalizedBioText = normalizeNewlines(bioText);
     if (normalizedBioText.length > 200) {
       ctx.addIssue({
         code: z.ZodIssueCode.too_big,
@@ -99,7 +103,7 @@ const abstractValidation = z.string().superRefine((text, ctx) => {
   // TODO: Support English abstract
   if (summaryMatch && summaryMatch[1]) {
     const summaryText = summaryMatch[1].trim();
-    const normalizedSummaryText = summaryText.replace(/\r\n|\r|\n/g, "\n");
+    const normalizedSummaryText = normalizeNewlines(summaryText);
     if (normalizedSummaryText.length > 400) {
       ctx.addIssue({
         code: z.ZodIssueCode.too_big,
