@@ -16,7 +16,13 @@
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
+    "kv_namespaces": [
+        {
+            "binding": "PROPOSAL_ONCALL_KV",
+            "id": "02543cad5256415eb6386627dcaad257"
+        }
+    ],
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

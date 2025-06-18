@@ -13,8 +13,10 @@ pnpm run dev
 
 ```bash
 pnpm run deploy
+# pnpm wrangler kv namespace create PROPOSAL_ONCALL_KV
 pnpm wrangler secret put SLACK_BOT_TOKEN
 pnpm wrangler secret put SLACK_SIGNING_SECRET
+pnpm wrangler secret put PROPOSAL_ONCALL_USERS
 ```
 
 ## Type Generation
