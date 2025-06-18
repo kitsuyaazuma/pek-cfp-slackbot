@@ -3,7 +3,6 @@ export type Bindings = {
   SLACK_SIGNING_SECRET: string;
   PROPOSAL_ONCALL_KV: KVNamespace;
   PROPOSAL_ONCALL_USERS: string;
-  SLACK_STATUS_CHECK_CHANNEL: string;
 };
 
 export type SlackAppMentionEvent = {

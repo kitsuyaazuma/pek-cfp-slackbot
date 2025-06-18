@@ -9,7 +9,7 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 app.use("*", verifySlackRequest());
 
-export const formatValidationErrors = (error: z.ZodError) => {
+const formatValidationErrors = (error: z.ZodError) => {
   let message = "❌ プロポーザルの内容に以下の問題が見つかりました\n\n";
   for (const issue of error.issues) {
     message += `• ${issue.message}\n`;
@@ -65,7 +65,7 @@ app.post("/", async (c) => {
     }
   }
 
-  await postSlackMessage(c.env.SLACK_BOT_TOKEN, channel, slackMessage, ts);
+  await postSlackMessage(c.env.SLACK_BOT_TOKEN, channel, ts, slackMessage);
   return c.text("OK", 200);
 });
 
