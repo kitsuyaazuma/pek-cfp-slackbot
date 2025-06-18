@@ -45,8 +45,8 @@ app.post("/", async (c) => {
       const validationMessage = formatValidationErrors(result.error);
       slackMessage = validationMessage;
 
-      const exsistingEntry = await c.env.PROPOSAL_ONCALL_KV.get(uuid);
-      if (exsistingEntry === null) {
+      const existingEntry = await c.env.PROPOSAL_ONCALL_KV.get(uuid);
+      if (existingEntry === null) {
         const oncallUsers = c.env.PROPOSAL_ONCALL_USERS;
         if (oncallUsers) {
           const users = oncallUsers
