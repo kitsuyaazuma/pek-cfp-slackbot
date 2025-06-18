@@ -27,7 +27,7 @@ const kanaValidation = z.string().superRefine((text, ctx) => {
     },
   };
 
-  for (const [_key, section] of Object.entries(sections)) {
+  for (const section of Object.values(sections)) {
     const match = text.match(section.regex);
 
     if (!match || match[1].trim() === "") {
