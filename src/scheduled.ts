@@ -1,4 +1,4 @@
-import { formatValidationErrors } from "./routes/events";
+import { formatValidationErrors, PENDING } from "./routes/events";
 import { Bindings } from "./types";
 import { validateAllProposals } from "./utils/fortee";
 import { postSlackMessage } from "./utils/slack";
@@ -20,16 +20,28 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
     return;
   }
 
-  const validProposals = validationResultsWithInfo.filter((v) => v.success);
-  const invalidProposals = validationResultsWithInfo.filter((v) => !v.success);
-
+  let validCount = 0,
+    pendingCount = 0,
+    invalidCount = 0;
   let summaryMessage = "📣 *CFPステータスチェック*\n\n";
-  summaryMessage += validationResultsWithInfo
-    .map(({ success }) => {
-      return success ? "🟩" : "🟥";
-    })
-    .join("");
-  summaryMessage += `\n\n*合計: ${validationResultsWithInfo.length}件、有効: ${validProposals.length}件、無効: ${invalidProposals.length}件*`;
+  summaryMessage += await Promise.all(
+    validationResultsWithInfo.map(async ({ success, uuid }) => {
+      if (success) {
+        validCount++;
+        return "🟩";
+      }
+      if (uuid !== undefined) {
+        const oncallUser = await env.PROPOSAL_ONCALL_KV.get(uuid);
+        if (oncallUser === PENDING) {
+          pendingCount++;
+          return "🟨";
+        }
+      }
+      invalidCount++;
+      return "🟥";
+    }),
+  ).then((statuses) => statuses.join(""));
+  summaryMessage += `\n\n*合計: ${validationResultsWithInfo.length}件、有効: ${validCount}件、保留: ${pendingCount}件、無効: ${invalidCount}件*`;
 
   const res = await postSlackMessage(
     env.SLACK_BOT_TOKEN,
@@ -48,7 +60,10 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
 
   const thread_ts = resJson.ts;
 
-  for (const { error, uuid } of invalidProposals) {
+  const pendingOrInvalidProposals = validationResultsWithInfo.filter(
+    (v) => !v.success,
+  );
+  for (const { error, uuid } of pendingOrInvalidProposals) {
     if (uuid === undefined) {
       continue;
     }
@@ -66,7 +81,12 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
           env.PROPOSAL_ONCALL_KV.put(uuid, oncallUser);
         }
       }
-      threadMessage += `\n<@${oncallUser}> さん、内容の確認をお願いします！🙏`;
+
+      if (oncallUser === PENDING) {
+        threadMessage += `\n保留中のプロポーザルです！⛔️`;
+      } else {
+        threadMessage += `\n<@${oncallUser}> さん、内容の確認をお願いします！🙏`;
+      }
     } else {
       threadMessage += `\n\n🚨 エラーが発生しました\n\n${error.message}`;
     }
