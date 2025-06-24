@@ -24,7 +24,7 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
     pendingCount = 0,
     invalidCount = 0;
   let summaryMessage = "📣 *CFPステータスチェック*\n\n";
-  summaryMessage += await Promise.all(
+  const statuses = await Promise.all(
     validationResultsWithInfo.map(async ({ success, uuid }) => {
       if (success) {
         validCount++;
@@ -40,7 +40,8 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
       invalidCount++;
       return "🟥";
     }),
-  ).then((statuses) => statuses.join(""));
+  );
+  summaryMessage += statuses.join("");
   summaryMessage += `\n\n*合計: ${validationResultsWithInfo.length}件、有効: ${validCount}件、保留: ${pendingCount}件、無効: ${invalidCount}件*`;
 
   const res = await postSlackMessage(
