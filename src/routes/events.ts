@@ -9,6 +9,8 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 app.use("*", verifySlackRequest());
 
+export const PENDING = "PENDING";
+
 export const formatValidationErrors = (error: z.ZodError) => {
   let message = "❌ プロポーザルの内容に以下の問題が見つかりました\n\n";
   for (const issue of error.issues) {
@@ -59,6 +61,8 @@ app.post("/", async (c) => {
             await c.env.PROPOSAL_ONCALL_KV.put(uuid, oncallUser);
           }
         }
+      } else if (existingEntry === PENDING) {
+        slackMessage += `\n保留中のプロポーザルです⛔️`;
       }
     } else {
       slackMessage = `🚨 エラーが発生しました\n\n${result.error.message}`;
