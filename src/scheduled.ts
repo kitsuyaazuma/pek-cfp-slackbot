@@ -1,8 +1,10 @@
-import { formatValidationErrors, PENDING } from "./routes/events";
+import {
+  handleInvalidProposal,
+  PENDING_PROPOSAL_PREFIX,
+} from "./utils/proposals";
 import { Bindings } from "./types";
 import { validateAllProposals } from "./utils/fortee";
 import { postSlackMessage } from "./utils/slack";
-import { z } from "zod";
 
 export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
   /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -32,7 +34,7 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
       }
       if (uuid !== undefined) {
         const oncallUser = await env.PROPOSAL_ONCALL_KV.get(uuid);
-        if (oncallUser === PENDING) {
+        if (oncallUser?.startsWith(PENDING_PROPOSAL_PREFIX)) {
           pendingCount++;
           return "🟨";
         }
@@ -43,7 +45,6 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
   );
   summaryMessage += statuses.join("");
   summaryMessage += `\n\n*合計: ${validationResultsWithInfo.length}件、有効: ${validCount}件、保留: ${pendingCount}件、無効: ${invalidCount}件*`;
-
   const res = await postSlackMessage(
     env.SLACK_BOT_TOKEN,
     env.SLACK_STATUS_CHECK_CHANNEL,
@@ -68,33 +69,16 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
     if (uuid === undefined) {
       continue;
     }
-    let threadMessage = `https://fortee.jp/platform-engineering-kaigi-2025/proposal/${uuid}`;
-    if (error instanceof z.ZodError) {
-      threadMessage += `\n\n${formatValidationErrors(error)}`;
-
-      let oncallUser = await env.PROPOSAL_ONCALL_KV.get(uuid);
-      if (oncallUser === null) {
-        const users = env.PROPOSAL_ONCALL_USERS.split(",")
-          .map((user) => user.trim())
-          .filter((user) => user !== "");
-        if (users.length > 0) {
-          oncallUser = users[Math.floor(Math.random() * users.length)];
-          env.PROPOSAL_ONCALL_KV.put(uuid, oncallUser);
-        }
-      }
-
-      if (oncallUser === PENDING) {
-        threadMessage += `\n保留中のプロポーザルです！⛔️`;
-      } else {
-        threadMessage += `\n<@${oncallUser}> さん、内容の確認をお願いします！🙏`;
-      }
-    } else {
-      threadMessage += `\n\n🚨 エラーが発生しました\n\n${error.message}`;
-    }
+    const { threadMessage, blocks } = await handleInvalidProposal(
+      env,
+      uuid,
+      error,
+    );
     await postSlackMessage(
       env.SLACK_BOT_TOKEN,
       env.SLACK_STATUS_CHECK_CHANNEL,
       threadMessage,
+      blocks,
       thread_ts,
     );
   }
