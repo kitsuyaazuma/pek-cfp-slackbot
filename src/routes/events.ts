@@ -2,22 +2,12 @@ import { Hono } from "hono";
 import { Bindings, SlackOuterEvent } from "../types";
 import { postSlackMessage } from "../utils/slack";
 import { validateProposal, getUuidFromMessage } from "../utils/fortee";
-import { z } from "zod";
 import { verifySlackRequest } from "@kitsuyaazuma/hono-slack-verify";
+import { handleInvalidProposal } from "../utils/proposals";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.use("*", verifySlackRequest());
-
-export const PENDING = "PENDING";
-
-export const formatValidationErrors = (error: z.ZodError) => {
-  let message = "❌ プロポーザルの内容に以下の問題が見つかりました\n\n";
-  for (const issue of error.issues) {
-    message += `• ${issue.message}\n`;
-  }
-  return message;
-};
 
 app.post("/", async (c) => {
   const body = await c.req.json<SlackOuterEvent>();
@@ -39,37 +29,27 @@ app.post("/", async (c) => {
   }
   const result = await validateProposal(uuid);
   let slackMessage = "";
+  let blocks: Record<string, unknown>[] | undefined = undefined;
   if (result.success) {
     const { proposal } = result;
     slackMessage = `✅ プロポーザルの内容は有効です\n\n*タイトル* : ${proposal.title}\n*スピーカー* : ${proposal.speaker.name}`;
   } else {
-    if (result.error instanceof z.ZodError) {
-      const validationMessage = formatValidationErrors(result.error);
-      slackMessage = validationMessage;
-
-      const existingEntry = await c.env.PROPOSAL_ONCALL_KV.get(uuid);
-      if (existingEntry === null) {
-        const oncallUsers = c.env.PROPOSAL_ONCALL_USERS;
-        if (oncallUsers) {
-          const users = oncallUsers
-            .split(",")
-            .map((user) => user.trim())
-            .filter((user) => user !== "");
-          if (users.length > 0) {
-            const oncallUser = users[Math.floor(Math.random() * users.length)];
-            slackMessage += `\n<@${oncallUser}> さん、内容の確認をお願いします！🙏`;
-            await c.env.PROPOSAL_ONCALL_KV.put(uuid, oncallUser);
-          }
-        }
-      } else if (existingEntry === PENDING) {
-        slackMessage += `\n保留中のプロポーザルです⛔️`;
-      }
-    } else {
-      slackMessage = `🚨 エラーが発生しました\n\n${result.error.message}`;
-    }
+    const { threadMessage, blocks: _blocks } = await handleInvalidProposal(
+      c.env,
+      uuid,
+      result.error,
+    );
+    slackMessage = threadMessage;
+    blocks = _blocks;
   }
 
-  await postSlackMessage(c.env.SLACK_BOT_TOKEN, channel, slackMessage, ts);
+  await postSlackMessage(
+    c.env.SLACK_BOT_TOKEN,
+    channel,
+    slackMessage,
+    blocks,
+    ts,
+  );
   return c.text("OK", 200);
 });
 
