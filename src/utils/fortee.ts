@@ -42,15 +42,6 @@ const kanaValidation = z.string().superRefine((text, ctx) => {
   }
 });
 
-const SpeakerSchema = z.object({
-  name: z.string(),
-  kana: kanaValidation,
-});
-
-const FeedbackSchema = z.object({
-  open: z.boolean(),
-});
-
 const abstractValidation = z.string().superRefine((text, ctx) => {
   const bioHeader =
     "■スピーカープロフィール (200文字以内) - Biography (Less than 400 letters)□";
@@ -128,22 +119,44 @@ const ProposalSchema = z.object({
   uuid: z.string().uuid(),
   url: z.string().url(),
   title: z.string(),
-  abstract: abstractValidation,
+  abstract: z.string(),
   accepted: z.boolean(),
-  speaker: SpeakerSchema,
+  speaker: z.object({
+    name: z.string(),
+    kana: z.string(),
+  }),
   created: z.string(),
-  feedback: FeedbackSchema,
+  feedback: z.object({
+    open: z.boolean(),
+  }),
 });
+
+const CustomProposalSchema = ProposalSchema.merge(
+  z.object({
+    abstract: abstractValidation,
+    speaker: z.object({
+      name: z.string(),
+      kana: kanaValidation,
+    }),
+  }),
+);
 
 const ApiResponseSchema = z.object({
   proposals: z.array(ProposalSchema),
 });
 
-export type Proposal = z.infer<typeof ProposalSchema>;
+export type CustomProposal = z.infer<typeof CustomProposalSchema>;
 
 export type ValidationResult =
-  | { success: true; proposal: Proposal }
-  | { success: false; uuid?: string; error: z.ZodError | Error };
+  | {
+      success: true;
+      proposal: CustomProposal;
+    }
+  | {
+      success: false;
+      uuid?: string;
+      error: z.ZodError | Error;
+    };
 
 export const validateProposal = async (
   uuid: string,
@@ -162,20 +175,26 @@ export const validateProposal = async (
     }
 
     const data = await response.json();
-    const validationResult = ApiResponseSchema.safeParse(data);
+    const result = ApiResponseSchema.safeParse(data);
 
-    if (!validationResult.success) {
-      return { success: false, uuid: uuid, error: validationResult.error };
+    if (!result.success) {
+      return { success: false, error: result.error };
     }
 
-    if (validationResult.data.proposals.length > 0) {
-      return { success: true, proposal: validationResult.data.proposals[0] };
+    if (result.data.proposals.length === 0) {
+      return {
+        success: false,
+        error: new Error("APIレスポンスにプロポーザルが含まれていませんでした"),
+      };
     }
 
-    return {
-      success: false,
-      error: new Error("APIレスポンスにプロポーザルが含まれていませんでした"),
-    };
+    const proposal = result.data.proposals[0];
+    const customResult = CustomProposalSchema.safeParse(proposal);
+    if (!customResult.success) {
+      return { success: false, error: customResult.error };
+    }
+
+    return { success: true, proposal: customResult.data };
   } catch (error) {
     return {
       success: false,
@@ -186,10 +205,6 @@ export const validateProposal = async (
     };
   }
 };
-
-const ApiResponseUuidSchema = z.object({
-  proposals: z.array(z.object({ uuid: z.string().uuid() })),
-});
 
 export const validateAllProposals = async (): Promise<ValidationResult[]> => {
   const apiUrl = `${FORTEE_API_BASE_URL}/proposals`;
@@ -208,22 +223,22 @@ export const validateAllProposals = async (): Promise<ValidationResult[]> => {
     }
 
     const data = await response.json();
-    const resultAll = ApiResponseUuidSchema.safeParse(data);
+    const result = ApiResponseSchema.safeParse(data);
 
-    if (!resultAll.success) {
-      return [{ success: false, error: resultAll.error }];
+    if (!result.success) {
+      return [{ success: false, error: result.error }];
     }
 
-    const validationResults: ValidationResult[] = resultAll.data.proposals.map(
+    const validationResults: ValidationResult[] = result.data.proposals.map(
       (proposal) => {
-        const result = ProposalSchema.safeParse(proposal);
-        if (result.success) {
-          return { success: true, proposal: result.data };
+        const customResult = CustomProposalSchema.safeParse(proposal);
+        if (customResult.success) {
+          return { success: true, proposal: customResult.data };
         } else {
           return {
             success: false,
             uuid: proposal.uuid,
-            error: result.error,
+            error: customResult.error,
           };
         }
       },

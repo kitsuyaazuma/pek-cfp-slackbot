@@ -13,18 +13,22 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
   _ctx: ExecutionContext,
   /* eslint-enable @typescript-eslint/no-unused-vars */
 ) => {
-  const validationResultsWithInfo = await validateAllProposals();
+  const validationResults = await validateAllProposals();
 
-  if (validationResultsWithInfo.length === 0) {
+  if (validationResults.length === 0) {
     console.error(
       "プロポーザルが見つからなかったか、取得に失敗したため処理を終了します",
     );
     return;
   }
 
-  const invalidUuids = validationResultsWithInfo
-    .filter(({ success }) => !success)
-    .map(({ uuid }) => uuid)
+  const invalidUuids = validationResults
+    .map((result) => {
+      if (!result.success) {
+        return result.uuid;
+      }
+      return undefined;
+    })
     .filter((uuid): uuid is string => uuid !== undefined);
 
   const oncallUserMap: Map<string, string | null> = new Map();
@@ -41,25 +45,23 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
     pendingCount = 0,
     invalidCount = 0;
   let summaryMessage = "📣 *CFPステータスチェック*\n\n";
-  const statuses = await Promise.all(
-    validationResultsWithInfo.map(async ({ success, uuid }) => {
-      if (success) {
-        validCount++;
-        return "🟩";
+  const statuses = validationResults.map((result) => {
+    if (result.success) {
+      validCount++;
+      return "🟩";
+    }
+    if (result.uuid !== undefined) {
+      const oncallUser = oncallUserMap.get(result.uuid);
+      if (oncallUser?.startsWith(PENDING_PROPOSAL_PREFIX)) {
+        pendingCount++;
+        return "🟨";
       }
-      if (uuid !== undefined) {
-        const oncallUser = oncallUserMap.get(uuid);
-        if (oncallUser?.startsWith(PENDING_PROPOSAL_PREFIX)) {
-          pendingCount++;
-          return "🟨";
-        }
-      }
-      invalidCount++;
-      return "🟥";
-    }),
-  );
+    }
+    invalidCount++;
+    return "🟥";
+  });
   summaryMessage += statuses.join("");
-  summaryMessage += `\n\n*合計: ${validationResultsWithInfo.length}件、有効: ${validCount}件、保留: ${pendingCount}件、無効: ${invalidCount}件*`;
+  summaryMessage += `\n\n*合計: ${validationResults.length}件、有効: ${validCount}件、保留: ${pendingCount}件、無効: ${invalidCount}件*`;
   const res = await postSlackMessage(
     env.SLACK_BOT_TOKEN,
     env.SLACK_STATUS_CHECK_CHANNEL,
@@ -77,11 +79,9 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
 
   const thread_ts = resJson.ts;
 
-  const pendingOrInvalidProposals = validationResultsWithInfo.filter(
-    (v) => !v.success,
-  );
+  const pendingOrInvalidProposals = validationResults.filter((v) => !v.success);
   for (const { error, uuid } of pendingOrInvalidProposals) {
-    if (uuid === undefined) {
+    if (uuid === undefined || error === undefined) {
       continue;
     }
     const { threadMessage, blocks } = await handleInvalidProposal(
