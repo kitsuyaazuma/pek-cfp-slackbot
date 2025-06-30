@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+const FORTEE_API_BASE_URL =
+  "https://fortee.jp/platform-engineering-kaigi-2025/api";
+
 export const getUuidFromMessage = (message: string): string | null => {
   const regex =
     /https:\/\/fortee\.jp\/platform-engineering-kaigi-2025\/proposal\/([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12})/i;
@@ -140,12 +143,12 @@ export type Proposal = z.infer<typeof ProposalSchema>;
 
 export type ValidationResult =
   | { success: true; proposal: Proposal }
-  | { success: false; error: z.ZodError | Error };
+  | { success: false; uuid?: string; error: z.ZodError | Error };
 
 export const validateProposal = async (
   uuid: string,
 ): Promise<ValidationResult> => {
-  const apiUrl = `https://fortee.jp/platform-engineering-kaigi-2025/api/proposals/${uuid}`;
+  const apiUrl = `${FORTEE_API_BASE_URL}/proposals/${uuid}`;
 
   try {
     const response = await fetch(apiUrl);
@@ -162,7 +165,7 @@ export const validateProposal = async (
     const validationResult = ApiResponseSchema.safeParse(data);
 
     if (!validationResult.success) {
-      return { success: false, error: validationResult.error };
+      return { success: false, uuid: uuid, error: validationResult.error };
     }
 
     if (validationResult.data.proposals.length > 0) {
@@ -188,12 +191,8 @@ const ApiResponseUuidSchema = z.object({
   proposals: z.array(z.object({ uuid: z.string().uuid() })),
 });
 
-export type ValidationResultWithInfo = ValidationResult & { uuid?: string };
-
-export const validateAllProposals = async (): Promise<
-  ValidationResultWithInfo[]
-> => {
-  const apiUrl = `https://fortee.jp/platform-engineering-kaigi-2025/api/proposals`;
+export const validateAllProposals = async (): Promise<ValidationResult[]> => {
+  const apiUrl = `${FORTEE_API_BASE_URL}/proposals`;
 
   try {
     const response = await fetch(apiUrl);
@@ -209,23 +208,27 @@ export const validateAllProposals = async (): Promise<
     }
 
     const data = await response.json();
-    const validationResult = ApiResponseUuidSchema.safeParse(data);
+    const resultAll = ApiResponseUuidSchema.safeParse(data);
 
-    if (!validationResult.success) {
-      return [{ success: false, error: validationResult.error }];
+    if (!resultAll.success) {
+      return [{ success: false, error: resultAll.error }];
     }
 
-    const results: ValidationResult[] = [];
-    for (const proposal of validationResult.data.proposals) {
-      const result: ValidationResultWithInfo = await validateProposal(
-        proposal.uuid,
-      );
-      if (!result.success) {
-        result.uuid = proposal.uuid;
-      }
-      results.push(result);
-    }
-    return results;
+    const validationResults: ValidationResult[] = resultAll.data.proposals.map(
+      (proposal) => {
+        const result = ProposalSchema.safeParse(proposal);
+        if (result.success) {
+          return { success: true, proposal: result.data };
+        } else {
+          return {
+            success: false,
+            uuid: proposal.uuid,
+            error: result.error,
+          };
+        }
+      },
+    );
+    return validationResults;
   } catch (error) {
     return [
       {
