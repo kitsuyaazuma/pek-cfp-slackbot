@@ -4,6 +4,8 @@ export type Bindings = {
   PROPOSAL_ONCALL_KV: KVNamespace;
   PROPOSAL_ONCALL_USERS: string;
   SLACK_STATUS_CHECK_CHANNEL: string;
+  CLOUDFLARE_PAGES_DEPLOY_HOOK_URL?: string;
+  TRIGGER_USER_ID?: string;
 };
 
 export type SlackAppMentionEvent = {
