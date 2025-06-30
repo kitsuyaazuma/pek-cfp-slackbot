@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+const FORTEE_API_BASE_URL =
+  "https://fortee.jp/platform-engineering-kaigi-2025/api";
+
 export const getUuidFromMessage = (message: string): string | null => {
   const regex =
     /https:\/\/fortee\.jp\/platform-engineering-kaigi-2025\/proposal\/([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12})/i;
@@ -37,15 +40,6 @@ const kanaValidation = z.string().superRefine((text, ctx) => {
       });
     }
   }
-});
-
-const SpeakerSchema = z.object({
-  name: z.string(),
-  kana: kanaValidation,
-});
-
-const FeedbackSchema = z.object({
-  open: z.boolean(),
 });
 
 const abstractValidation = z.string().superRefine((text, ctx) => {
@@ -125,27 +119,49 @@ const ProposalSchema = z.object({
   uuid: z.string().uuid(),
   url: z.string().url(),
   title: z.string(),
-  abstract: abstractValidation,
+  abstract: z.string(),
   accepted: z.boolean(),
-  speaker: SpeakerSchema,
+  speaker: z.object({
+    name: z.string(),
+    kana: z.string(),
+  }),
   created: z.string(),
-  feedback: FeedbackSchema,
+  feedback: z.object({
+    open: z.boolean(),
+  }),
 });
+
+const CustomProposalSchema = ProposalSchema.merge(
+  z.object({
+    abstract: abstractValidation,
+    speaker: z.object({
+      name: z.string(),
+      kana: kanaValidation,
+    }),
+  }),
+);
 
 const ApiResponseSchema = z.object({
   proposals: z.array(ProposalSchema),
 });
 
-export type Proposal = z.infer<typeof ProposalSchema>;
+export type CustomProposal = z.infer<typeof CustomProposalSchema>;
 
 export type ValidationResult =
-  | { success: true; proposal: Proposal }
-  | { success: false; error: z.ZodError | Error };
+  | {
+      success: true;
+      proposal: CustomProposal;
+    }
+  | {
+      success: false;
+      uuid?: string;
+      error: z.ZodError | Error;
+    };
 
 export const validateProposal = async (
   uuid: string,
 ): Promise<ValidationResult> => {
-  const apiUrl = `https://fortee.jp/platform-engineering-kaigi-2025/api/proposals/${uuid}`;
+  const apiUrl = `${FORTEE_API_BASE_URL}/proposals/${uuid}`;
 
   try {
     const response = await fetch(apiUrl);
@@ -159,20 +175,26 @@ export const validateProposal = async (
     }
 
     const data = await response.json();
-    const validationResult = ApiResponseSchema.safeParse(data);
+    const result = ApiResponseSchema.safeParse(data);
 
-    if (!validationResult.success) {
-      return { success: false, error: validationResult.error };
+    if (!result.success) {
+      return { success: false, error: result.error };
     }
 
-    if (validationResult.data.proposals.length > 0) {
-      return { success: true, proposal: validationResult.data.proposals[0] };
+    if (result.data.proposals.length === 0) {
+      return {
+        success: false,
+        error: new Error("APIレスポンスにプロポーザルが含まれていませんでした"),
+      };
     }
 
-    return {
-      success: false,
-      error: new Error("APIレスポンスにプロポーザルが含まれていませんでした"),
-    };
+    const proposal = result.data.proposals[0];
+    const customResult = CustomProposalSchema.safeParse(proposal);
+    if (!customResult.success) {
+      return { success: false, error: customResult.error };
+    }
+
+    return { success: true, proposal: customResult.data };
   } catch (error) {
     return {
       success: false,
@@ -184,16 +206,8 @@ export const validateProposal = async (
   }
 };
 
-const ApiResponseUuidSchema = z.object({
-  proposals: z.array(z.object({ uuid: z.string().uuid() })),
-});
-
-export type ValidationResultWithInfo = ValidationResult & { uuid?: string };
-
-export const validateAllProposals = async (): Promise<
-  ValidationResultWithInfo[]
-> => {
-  const apiUrl = `https://fortee.jp/platform-engineering-kaigi-2025/api/proposals`;
+export const validateAllProposals = async (): Promise<ValidationResult[]> => {
+  const apiUrl = `${FORTEE_API_BASE_URL}/proposals`;
 
   try {
     const response = await fetch(apiUrl);
@@ -209,23 +223,27 @@ export const validateAllProposals = async (): Promise<
     }
 
     const data = await response.json();
-    const validationResult = ApiResponseUuidSchema.safeParse(data);
+    const result = ApiResponseSchema.safeParse(data);
 
-    if (!validationResult.success) {
-      return [{ success: false, error: validationResult.error }];
+    if (!result.success) {
+      return [{ success: false, error: result.error }];
     }
 
-    const results: ValidationResult[] = [];
-    for (const proposal of validationResult.data.proposals) {
-      const result: ValidationResultWithInfo = await validateProposal(
-        proposal.uuid,
-      );
-      if (!result.success) {
-        result.uuid = proposal.uuid;
-      }
-      results.push(result);
-    }
-    return results;
+    const validationResults: ValidationResult[] = result.data.proposals.map(
+      (proposal) => {
+        const customResult = CustomProposalSchema.safeParse(proposal);
+        if (customResult.success) {
+          return { success: true, proposal: customResult.data };
+        } else {
+          return {
+            success: false,
+            uuid: proposal.uuid,
+            error: customResult.error,
+          };
+        }
+      },
+    );
+    return validationResults;
   } catch (error) {
     return [
       {

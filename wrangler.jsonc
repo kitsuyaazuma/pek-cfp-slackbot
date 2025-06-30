@@ -18,12 +18,11 @@
   "kv_namespaces": [
     {
       "binding": "PROPOSAL_ONCALL_KV",
-      "id": "02543cad5256415eb6386627dcaad257",
-      "preview_id": "87952dea22e248479a81f7aaf90df454",
+      "id": "45698141e3d74dcb9b025ccfe6ed111c",
     },
   ],
   "triggers": {
-    "crons": ["0 1 * * 2,4,6"],
+    "crons": ["0 1 * * 2,3,4,5,6"],
   },
   /**
    * Smart Placement
