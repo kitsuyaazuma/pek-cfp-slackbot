@@ -33,5 +33,12 @@ export const triggerCloudflarePagesDeploy = async (
     }
   } catch (err) {
     console.error("Error triggering Cloudflare Pages deploy:", err);
+    await postSlackMessage(
+      env.SLACK_BOT_TOKEN,
+      channel,
+      `❌ Cloudflare Pagesのデプロイ中にエラーが発生しました：${err}`,
+      undefined,
+      ts,
+    );
   }
 };
