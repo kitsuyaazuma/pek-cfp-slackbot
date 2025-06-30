@@ -145,6 +145,7 @@ const ApiResponseSchema = z.object({
   proposals: z.array(ProposalSchema),
 });
 
+export type Proposal = z.infer<typeof ProposalSchema>;
 export type CustomProposal = z.infer<typeof CustomProposalSchema>;
 
 export type ValidationResult =
@@ -254,5 +255,30 @@ export const validateAllProposals = async (): Promise<ValidationResult[]> => {
             : new Error("不明なエラーが発生しました"),
       },
     ];
+  }
+};
+
+export const getAllProposals = async (): Promise<Proposal[]> => {
+  const apiUrl = `${FORTEE_API_BASE_URL}/proposals`;
+
+  try {
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      throw new Error(
+        `APIリクエストに失敗しました（ステータス：${response.status}）`,
+      );
+    }
+
+    const data = await response.json();
+    const result = ApiResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      throw new Error(`APIレスポンスの解析に失敗しました：${result.error}`);
+    }
+    return result.data.proposals;
+  } catch (error) {
+    throw error instanceof Error
+      ? error
+      : new Error("不明なエラーが発生しました");
   }
 };

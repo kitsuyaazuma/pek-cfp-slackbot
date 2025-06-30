@@ -10,19 +10,26 @@
   "compatibility_date": "2025-06-10",
   "assets": {
     "binding": "ASSETS",
-    "directory": "./public",
+    "directory": "./public"
   },
   "observability": {
-    "enabled": true,
+    "enabled": true
   },
   "kv_namespaces": [
     {
       "binding": "PROPOSAL_ONCALL_KV",
-      "id": "45698141e3d74dcb9b025ccfe6ed111c",
+      "id": "45698141e3d74dcb9b025ccfe6ed111c"
     },
+    {
+      "binding": "PROPOSAL_UUID_KV",
+      "id": "3c8b6e6680cb41b0b41982e54222ee63"
+    }
   ],
   "triggers": {
-    "crons": ["0 1 * * 2,3,4,5,6"],
+    "crons": [
+        "0 1 * * 2,3,4,5,6",
+        "* * * * *"
+    ]
   },
   /**
    * Smart Placement

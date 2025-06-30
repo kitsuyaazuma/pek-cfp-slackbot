@@ -3,16 +3,61 @@ import {
   PENDING_PROPOSAL_PREFIX,
 } from "./utils/proposals";
 import { Bindings } from "./types";
-import { validateAllProposals } from "./utils/fortee";
+import { getAllProposals, validateAllProposals } from "./utils/fortee";
 import { postSlackMessage } from "./utils/slack";
 
-export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  _controller: ScheduledController,
-  env: Bindings,
-  _ctx: ExecutionContext,
-  /* eslint-enable @typescript-eslint/no-unused-vars */
-) => {
+const LAST_PROPOSALS_KEY = "last_proposals_uuids";
+
+const checkNewProposals = async (env: Bindings) => {
+  const results = await getAllProposals();
+  const currentUuids: Set<string> = new Set(
+    results.map((proposal) => proposal.uuid),
+  );
+
+  const lastUuidsJson = await env.PROPOSAL_UUID_KV.get(LAST_PROPOSALS_KEY);
+  const lastUuids = new Set<string>(
+    lastUuidsJson ? JSON.parse(lastUuidsJson) : [],
+  );
+
+  const newUuids = [...currentUuids].filter((uuid) => !lastUuids.has(uuid));
+
+  if (newUuids.length > 0) {
+    console.log(`Found ${newUuids.length} new proposals.`);
+    const newProposals = results.filter((result) =>
+      newUuids.includes(result.uuid),
+    );
+
+    for (const proposal of newProposals) {
+      let message = `<@${env.SLACK_BOT_USER_ID}>\n📣 *新しいプロポーザルが投稿されました！*\n\n`;
+      message += `https://fortee.jp/platform-engineering-kaigi-2025/proposal/${proposal.uuid}\n`;
+      message += `*タイトル* ：${proposal.title}\n*スピーカー* ：${proposal.speaker.name}\n`;
+      const blocks = [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: message,
+          },
+        },
+      ];
+      await postSlackMessage(
+        env.SLACK_BOT_TOKEN,
+        env.SLACK_STATUS_CHECK_CHANNEL,
+        message,
+        blocks,
+      );
+    }
+  } else {
+    console.log("No new proposals found.");
+  }
+
+  await env.PROPOSAL_UUID_KV.put(
+    LAST_PROPOSALS_KEY,
+    JSON.stringify([...currentUuids]),
+  );
+};
+
+const checkAllProposalsStatus = async (env: Bindings) => {
   const validationResults = await validateAllProposals();
 
   if (validationResults.length === 0) {
@@ -96,5 +141,20 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
       blocks,
       thread_ts,
     );
+  }
+};
+
+export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
+  controller: ScheduledController,
+  env: Bindings,
+  ctx: ExecutionContext,
+) => {
+  switch (controller.cron) {
+    case "* * * * *":
+      ctx.waitUntil(checkNewProposals(env));
+      break;
+    default:
+      ctx.waitUntil(checkAllProposalsStatus(env));
+      break;
   }
 };
