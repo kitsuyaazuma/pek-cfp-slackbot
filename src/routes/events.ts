@@ -4,6 +4,7 @@ import { postSlackMessage } from "../utils/slack";
 import { validateProposal, getUuidFromMessage } from "../utils/fortee";
 import { verifySlackRequest } from "@kitsuyaazuma/hono-slack-verify";
 import { handleInvalidProposal } from "../utils/proposals";
+import { triggerCloudflarePagesDeploy } from "../utils/cloudflare";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -21,7 +22,11 @@ app.post("/", async (c) => {
   }
 
   const { event } = body;
-  const { text, channel, ts } = event;
+  const { text, channel, ts, user } = event;
+
+  if (user === c.env.TRIGGER_USER_ID) {
+    await triggerCloudflarePagesDeploy(c.env, channel, ts);
+  }
 
   const uuid = getUuidFromMessage(text);
   if (uuid === null) {
