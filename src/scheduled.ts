@@ -22,6 +22,21 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
     return;
   }
 
+  const invalidUuids = validationResultsWithInfo
+    .filter(({ success }) => !success)
+    .map(({ uuid }) => uuid)
+    .filter((uuid): uuid is string => uuid !== undefined);
+
+  const oncallUserMap: Map<string, string | null> = new Map();
+  if (invalidUuids.length > 0) {
+    const values = await env.PROPOSAL_ONCALL_KV.get(invalidUuids);
+    if (values) {
+      Object.entries(values).forEach(([key, value]) => {
+        oncallUserMap.set(key, value ?? null);
+      });
+    }
+  }
+
   let validCount = 0,
     pendingCount = 0,
     invalidCount = 0;
@@ -33,7 +48,7 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
         return "🟩";
       }
       if (uuid !== undefined) {
-        const oncallUser = await env.PROPOSAL_ONCALL_KV.get(uuid);
+        const oncallUser = oncallUserMap.get(uuid);
         if (oncallUser?.startsWith(PENDING_PROPOSAL_PREFIX)) {
           pendingCount++;
           return "🟨";
