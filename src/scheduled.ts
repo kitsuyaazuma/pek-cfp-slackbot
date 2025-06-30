@@ -81,7 +81,7 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
 
   const pendingOrInvalidProposals = validationResults.filter((v) => !v.success);
   for (const { error, uuid } of pendingOrInvalidProposals) {
-    if (uuid === undefined || error === undefined) {
+    if (uuid === undefined) {
       continue;
     }
     const { threadMessage, blocks } = await handleInvalidProposal(
