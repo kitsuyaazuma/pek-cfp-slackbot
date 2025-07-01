@@ -258,24 +258,20 @@ export const validateAllProposals = async (): Promise<ValidationResult[]> => {
   }
 };
 
-export const getAllProposals = async (): Promise<Proposal[]> => {
+export const getAllProposalsAsJsonString = async (): Promise<string> => {
   const apiUrl = `${FORTEE_API_BASE_URL}/proposals`;
 
   try {
     const response = await fetch(apiUrl);
     if (!response.ok) {
+      console.error(await response.text());
       throw new Error(
         `APIリクエストに失敗しました（ステータス：${response.status}）`,
       );
     }
 
-    const data = await response.json();
-    const result = ApiResponseSchema.safeParse(data);
-
-    if (!result.success) {
-      throw new Error(`APIレスポンスの解析に失敗しました：${result.error}`);
-    }
-    return result.data.proposals;
+    const jsonString = await response.text();
+    return jsonString;
   } catch (error) {
     throw error instanceof Error
       ? error

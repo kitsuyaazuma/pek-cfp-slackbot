@@ -3,58 +3,27 @@ import {
   PENDING_PROPOSAL_PREFIX,
 } from "./utils/proposals";
 import { Bindings } from "./types";
-import { getAllProposals, validateAllProposals } from "./utils/fortee";
+import {
+  getAllProposalsAsJsonString,
+  validateAllProposals,
+} from "./utils/fortee";
 import { postSlackMessage } from "./utils/slack";
+import { triggerCloudflarePagesDeploy } from "./utils/cloudflare";
 
-const LAST_PROPOSALS_KEY = "last_proposals_uuids";
+const LAST_PROPOSALS_KEY = "last_proposals_json";
 
-const checkNewProposals = async (env: Bindings) => {
-  const results = await getAllProposals();
-  const currentUuids: Set<string> = new Set(
-    results.map((proposal) => proposal.uuid),
-  );
-
-  const lastUuidsJson = await env.PROPOSAL_UUID_KV.get(LAST_PROPOSALS_KEY);
-  const lastUuids = new Set<string>(
-    lastUuidsJson ? JSON.parse(lastUuidsJson) : [],
-  );
-
-  const newUuids = [...currentUuids].filter((uuid) => !lastUuids.has(uuid));
-
-  if (newUuids.length > 0) {
-    console.log(`Found ${newUuids.length} new proposals.`);
-    const newProposals = results.filter((result) =>
-      newUuids.includes(result.uuid),
-    );
-
-    for (const proposal of newProposals) {
-      let message = `<@${env.SLACK_BOT_USER_ID}>\n📣 *新しいプロポーザルが投稿されました！*\n\n`;
-      message += `https://fortee.jp/platform-engineering-kaigi-2025/proposal/${proposal.uuid}\n`;
-      message += `*タイトル* ：${proposal.title}\n*スピーカー* ：${proposal.speaker.name}\n`;
-      const blocks = [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: message,
-          },
-        },
-      ];
-      await postSlackMessage(
-        env.SLACK_BOT_TOKEN,
-        env.SLACK_STATUS_CHECK_CHANNEL,
-        message,
-        blocks,
-      );
-    }
+const checkProposalChanges = async (env: Bindings) => {
+  const currentProposalsJson = await getAllProposalsAsJsonString();
+  const lastProposalsJson =
+    await env.PROPOSAL_CHANGE_KV.get(LAST_PROPOSALS_KEY);
+  if (currentProposalsJson !== lastProposalsJson) {
+    console.log("Changes detected. Triggering Cloudflare Pages deploy...");
+    triggerCloudflarePagesDeploy(env);
   } else {
-    console.log("No new proposals found.");
+    console.log("No changes found.");
   }
 
-  await env.PROPOSAL_UUID_KV.put(
-    LAST_PROPOSALS_KEY,
-    JSON.stringify([...currentUuids]),
-  );
+  await env.PROPOSAL_CHANGE_KV.put(LAST_PROPOSALS_KEY, currentProposalsJson);
 };
 
 const checkAllProposalsStatus = async (env: Bindings) => {
@@ -150,8 +119,8 @@ export const scheduled: ExportedHandlerScheduledHandler<Bindings> = async (
   ctx: ExecutionContext,
 ) => {
   switch (controller.cron) {
-    case "* * * * *":
-      ctx.waitUntil(checkNewProposals(env));
+    case "*/3 * * * *":
+      ctx.waitUntil(checkProposalChanges(env));
       break;
     default:
       ctx.waitUntil(checkAllProposalsStatus(env));

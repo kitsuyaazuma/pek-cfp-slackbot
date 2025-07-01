@@ -21,14 +21,14 @@
       "id": "45698141e3d74dcb9b025ccfe6ed111c"
     },
     {
-      "binding": "PROPOSAL_UUID_KV",
-      "id": "3c8b6e6680cb41b0b41982e54222ee63"
+      "binding": "PROPOSAL_CHANGE_KV",
+      "id": "d0e89b1854ba49d7a57bbd3658f8d7b2"
     }
   ],
   "triggers": {
     "crons": [
         "0 1 * * 2,3,4,5,6",
-        "* * * * *"
+        "*/3 * * * *"
     ]
   },
   /**
